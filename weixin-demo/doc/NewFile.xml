@@ -1,0 +1,18 @@
+<xml>
+
+	<!-- 
+		参数	描述
+		ToUserName		开发者微信号
+		FromUserName	发送方帐号（一个OpenID）
+		CreateTime		消息创建时间 （整型）秒
+		MsgType			消息类型，文本为text
+		Content			文本消息内容
+		MsgId			消息id，64位整型
+	 -->
+	<ToUserName><![CDATA[gh_5ede8ff4b4e4]]></ToUserName>
+	<FromUserName><![CDATA[o0GZEwp6mFhgtibHUylOtV5VHbBw]]></FromUserName>
+	<CreateTime>1577369647</CreateTime>
+	<MsgType><![CDATA[text]]></MsgType>
+	<Content><![CDATA[好的好的]]></Content>
+	<MsgId>22582503896464824</MsgId>
+</xml>
