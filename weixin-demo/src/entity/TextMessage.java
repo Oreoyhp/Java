@@ -2,9 +2,13 @@ package entity;
 
 import java.util.Map;
 
+import com.thoughtworks.xstream.annotations.XStreamAlias;
+
+@XStreamAlias("xml")
 public class TextMessage extends BaseMessage{
 	
 	/** 文本消息内容 */
+	@XStreamAlias("Content")
 	private String content;
 
 	public String getContent() {

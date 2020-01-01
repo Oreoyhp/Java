@@ -13,8 +13,16 @@ import org.dom4j.DocumentException;
 import org.dom4j.Element;
 import org.dom4j.io.SAXReader;
 
+import com.thoughtworks.xstream.XStream;
+
 import entity.BaseMessage;
+import entity.ImageMessage;
+import entity.MusicMessage;
+import entity.NewsMessage;
 import entity.TextMessage;
+import entity.VideoMessage;
+import entity.VoiceMessage;
+import utils.TulingApiProcess;
 
 public class WxService {
 
@@ -117,18 +125,42 @@ public class WxService {
 		default:
 			break;
 		}
-		System.out.println(msg);
+		if (null != msg) {
+			return beanToXml(msg);
+		}
 		return null;
 	}
 
 
 	/**
-	 * 
+	 * 把消息对象处理为xml数据包
+	 * @param msg
+	 * @return
+	 */
+	private static String beanToXml(BaseMessage msg) {
+		XStream stream = new XStream();
+		//设置需要处理@XStreamAlias("xml")注解的类
+		stream.processAnnotations(TextMessage.class);
+		stream.processAnnotations(ImageMessage.class);
+		stream.processAnnotations(MusicMessage.class);
+		stream.processAnnotations(NewsMessage.class);
+		stream.processAnnotations(VideoMessage.class);
+		stream.processAnnotations(VoiceMessage.class);
+		String xml = stream.toXML(msg);
+		return xml;
+	}
+
+	/**
+	 * 调用图灵聊天机器人
 	 * @param requestMap
 	 * @return 处理文本消息
 	 */
 	private static BaseMessage dealTextMessage(Map<String, String> requestMap) {
-		TextMessage tm = new TextMessage(requestMap, "测试ing....");
+		String msg = requestMap.get("Content");
+		String resp = new TulingApiProcess().getTulingResult(msg);
+		System.out.println(resp);
+		TextMessage tm = new TextMessage(requestMap, resp);
 		return tm;
 	}
+	
 }
