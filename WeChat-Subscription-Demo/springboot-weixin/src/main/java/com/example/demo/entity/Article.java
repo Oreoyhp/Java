@@ -2,7 +2,7 @@ package com.example.demo.entity;
 
 import com.thoughtworks.xstream.annotations.XStreamAlias;
 
-@XStreamAlias("xml")
+@XStreamAlias("item")
 public class Article {
 	
 	/** 图文消息标题*/

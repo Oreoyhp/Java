@@ -6,8 +6,10 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -21,6 +23,12 @@ import org.dom4j.DocumentException;
 import org.dom4j.Element;
 import org.dom4j.io.SAXReader;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+import com.baidu.aip.ocr.AipOcr;
+import com.example.demo.entity.AccessToken;
+import com.example.demo.entity.Article;
 import com.example.demo.entity.BaseMessage;
 import com.example.demo.entity.ImageMessage;
 import com.example.demo.entity.MusicMessage;
@@ -28,12 +36,50 @@ import com.example.demo.entity.NewsMessage;
 import com.example.demo.entity.TextMessage;
 import com.example.demo.entity.VideoMessage;
 import com.example.demo.entity.VoiceMessage;
+import com.example.demo.util.Util;
 import com.thoughtworks.xstream.XStream;
 
 public class WxService {
 
 	private static final String TOKEN ="4a338414d3d94768823cc3051d0c3e91";
 	private static final String KEY = "4a338414d3d94768823cc3051d0c3e91";
+	
+	public static final String GET_TOKEN_URL ="https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=APPID&secret=APPSECRET";
+	public static final String APPID ="wx8e6ee934bda92ddd";
+	public static final String APPSECRET ="85a29fdff430bbd40d9b05fa1495226b";
+	
+	//用于存储token
+	public static AccessToken at;
+	
+	//百度AI识图
+    public static final String APP_ID = "";
+    public static final String API_KEY = "";
+    public static final String SECRET_KEY = "";
+	
+	
+	/**
+	 * 获取token
+	 */
+	private static void getToken() {
+		String url = GET_TOKEN_URL.replace("APPID", APPID).replace("APPSECRET", APPSECRET);
+		String tokenStr = Util.get(url);
+		JSONObject jb = JSON.parseObject(tokenStr);
+		String atoken = jb.getString("access_token");
+		String expireIn = jb.getString("expires_in");
+		//创建token对象，并存起来
+	    at = new AccessToken(atoken, expireIn);
+	}
+	
+	/**
+	 * 向外暴漏的获取token的方法
+	 * @return
+	 */
+	public static  String getAccessToken() {
+		if (at == null || at.isExpired()) {
+			getToken();
+		}
+		return at.getAccessToken();
+	}
 	
 	public static boolean ckeck(String signature,String timestamp,String nonce){
 		//1）将token、timestamp、nonce三个参数进行字典序排序 
@@ -102,7 +148,7 @@ public class WxService {
 		String msgType = requestMap.get("MsgType");
 		switch (msgType) {
 		case "text":msg = dealTextMessage(requestMap);break;
-		case "image":break;
+		case "image":msg = dealImage(requestMap);break;
 		case "voice":break;
 		case "video":break;
 		case "music":break;
@@ -110,11 +156,92 @@ public class WxService {
 		case "shortvideo":break;
 		case "location":break;
 		case "link":break;
+		case "event": msg=dealEvent(requestMap); break;
 		default:break;
 		}
 		if (null != msg) {
 			return beanToXml(msg);
 		}
+		return null;
+	}
+
+	/**
+	 * 进行图片识图
+	 * @param requestMap
+	 * @return
+	 */
+	private static BaseMessage dealImage(Map<String, String> requestMap) {
+		 //初始化一个AipOcr
+        AipOcr client = new AipOcr(APP_ID, API_KEY, SECRET_KEY);
+
+        // 可选：设置网络连接参数
+        client.setConnectionTimeoutInMillis(2000);
+        client.setSocketTimeoutInMillis(60000);
+
+        // 调用接口
+        String path = requestMap.get("PicUrl");
+        //org.json.JSONObject res = client.basicGeneral(path, new HashMap<String, String>());
+        //进行网络图片文字识别
+        org.json.JSONObject res = client.generalUrl(path, new HashMap<String, String>());
+        String json = res.toString();
+        JSONObject jsonObject = (JSONObject) JSON.toJSON(json);
+        JSONArray jsonArray = jsonObject.getJSONArray("words_result");
+        
+        Iterator<Object> it = jsonArray.iterator();
+        StringBuilder sb = new StringBuilder();
+        while (it.hasNext()) {
+        	JSONObject next = (JSONObject) it.next();
+        	sb.append(next.getString("words"));
+		}
+        
+		return new TextMessage(requestMap, sb.toString());
+	}
+
+	/**
+	 * 处理事件推送
+	 * @param requestMap
+	 * @return
+	 */
+	private static BaseMessage dealEvent(Map<String, String> requestMap) {
+		String event = requestMap.get("Event");
+		switch (event) {
+		case "CLICK":return dealClick(requestMap);
+		case "VIEW":return dealView(requestMap);
+		default:
+			break;
+		}
+		return null;
+	}
+
+	/**
+	 * 处理Click类型的菜单
+	 * @param requestMap
+	 * @return
+	 */
+	private static BaseMessage dealClick(Map<String, String> requestMap) {
+		String key = requestMap.get("EventKey");
+		switch (key) {
+			case "1":
+				//处理点击了第一个一级菜单
+				return new TextMessage(requestMap, "你点击了第一个一级菜单");
+			case "32":
+				//处理点击了第三菜单的第二个子菜单
+				break;
+	
+			default:
+				break;
+		}
+		
+		return null;
+	}
+
+	/**
+	 * 处理View类型的菜单
+	 * @param requestMap
+	 * @return
+	 */
+	private static BaseMessage dealView(Map<String, String> requestMap) {
+		// TODO Auto-generated method stub
 		return null;
 	}
 
@@ -141,7 +268,15 @@ public class WxService {
 	 * @return 处理文本消息
 	 */
 	private static BaseMessage dealTextMessage(Map<String, String> requestMap) {
+		//用户发送的消息
 		String msg = requestMap.get("Content");
+		
+		if(msg.equals("图文")) {
+			List<Article> articles =  new ArrayList<Article>();
+			articles.add(new Article("这是图文消息的标题", "这是图文消息的详细介绍", "1231", "http://www.baidu.com"));
+			NewsMessage nm = new NewsMessage(requestMap, articles);
+			return nm;
+		}
 		
 		String resp = getAnswerResult(msg);
 //		String resp = new TulingApiProcess().getTulingResult(msg);
